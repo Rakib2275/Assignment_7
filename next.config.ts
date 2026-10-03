@@ -1,0 +1,19 @@
+import type { NextConfig } from "next";
+
+const backendUrl = (process.env.BACKEND_URL ?? "http://localhost:6001").replace(/\/$/, "");
+
+const nextConfig: NextConfig = {
+  experimental: {
+    cpus: 1,
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${backendUrl}/api/v1/:path*`,
+      },
+    ];
+  },
+};
+
+export default nextConfig;
