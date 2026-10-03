@@ -75,6 +75,7 @@ export default function LoginPage() {
 
             <div className="label-row">
               <label htmlFor="password">Password</label>
+              <Link className="forgot-password-link" href="/forgot-password">Forgot password?</Link>
             </div>
             <div className="password-wrap">
               <input

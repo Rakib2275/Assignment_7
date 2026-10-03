@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { clearAccessToken, getAccessToken } from "@/lib/session";
+import { OperationsWorkspace } from "./operations";
 
 type User = {
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -224,6 +226,7 @@ function AdminDashboard({
           </section>
         </div>
         <p className="dashboard-note">Platform statistics are provided by the service backend.</p>
+        <OperationsWorkspace user={data.user} areas={data.areas} schedules={data.schedules} />
       </section>
     </main>
   );
@@ -368,6 +371,7 @@ function Dashboard({ data, onLogout }: { data: DashboardData; onLogout: () => vo
         <p className="dashboard-note">
           Schedule and area information is provided by your service operator.
         </p>
+        <OperationsWorkspace user={data.user} areas={data.areas} schedules={data.schedules} />
       </section>
     </main>
   );
