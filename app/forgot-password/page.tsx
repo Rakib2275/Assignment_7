@@ -16,7 +16,7 @@ function validPassword(password: string) {
 }
 
 export default function ForgotPasswordPage() {
-  const [step, setStep] = useState<"email" | "reset">("email");
+  const [step, setStep] = useState<"email" | "reset" | "success">("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -25,8 +25,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  async function requestCode(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function sendResetCode() {
     setError("");
     setNotice("");
     setSubmitting(true);
@@ -44,6 +43,11 @@ export default function ForgotPasswordPage() {
     }
   }
 
+  function requestCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void sendResetCode();
+  }
+
   async function resetPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -59,7 +63,7 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email, otp, newPassword: password }),
       });
       setNotice(response.message || "Your password has been reset. You can now log in.");
-      setStep("email");
+      setStep("success");
       setOtp("");
       setPassword("");
     } catch (requestError) {
@@ -85,12 +89,22 @@ export default function ForgotPasswordPage() {
       <section className="auth-main">
         <div className="auth-mobile-brand"><Link className="brand" href="/"><span className="brand-mark">R</span>Rakib</Link></div>
         <div className="auth-form-wrap">
-          <span className="eyebrow">{step === "email" ? "PASSWORD HELP" : "VERIFY YOUR EMAIL"}</span>
-          <h2>{step === "email" ? "Reset your password." : "Choose a new password."}</h2>
+          <span className="eyebrow">
+            {step === "email" ? "PASSWORD HELP" : step === "reset" ? "VERIFY YOUR EMAIL" : "PASSWORD UPDATED"}
+          </span>
+          <h2>
+            {step === "email"
+              ? "Reset your password."
+              : step === "reset"
+                ? "Choose a new password."
+                : "You’re all set."}
+          </h2>
           <p className="auth-subtitle">
             {step === "email"
               ? "Enter your account email and we’ll send a verification code."
-              : `Enter the code sent to ${email}, then choose a new password.`}
+              : step === "reset"
+                ? `Enter the code sent to ${email}, then choose a new password.`
+                : "Your password has been updated. You can now log in with your new password."}
           </p>
           {notice && <div className="form-notice" role="status">{notice}</div>}
           {error && <div className="form-error" role="alert">{error}</div>}
@@ -103,7 +117,7 @@ export default function ForgotPasswordPage() {
                 {submitting ? "Sending code…" : "Send reset code"} <span aria-hidden="true">→</span>
               </button>
             </form>
-          ) : (
+          ) : step === "reset" ? (
             <form className="auth-form" onSubmit={resetPassword}>
               <label htmlFor="reset-otp">Verification code</label>
               <input autoComplete="one-time-code" className="otp-input" id="reset-otp" inputMode="numeric" maxLength={6} minLength={6} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" required value={otp} />
@@ -116,10 +130,19 @@ export default function ForgotPasswordPage() {
               <button className="button button-dark auth-submit" disabled={submitting || otp.length !== 6} type="submit">
                 {submitting ? "Updating password…" : "Reset password"} <span aria-hidden="true">→</span>
               </button>
-              <button className="back-link" onClick={() => { setStep("email"); setError(""); setNotice(""); }} type="button">← Use a different email</button>
+              <button className="back-link" disabled={submitting} onClick={() => void sendResetCode()} type="button">
+                {submitting ? "Sending code…" : "Resend verification code"}
+              </button>
+              <button className="back-link" disabled={submitting} onClick={() => { setStep("email"); setError(""); setNotice(""); }} type="button">← Use a different email</button>
             </form>
+          ) : (
+            <div className="auth-form">
+              <Link className="button button-dark auth-submit" href="/login">
+                Continue to log in <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           )}
-          <p className="auth-switch"><Link href="/login">Back to log in</Link></p>
+          {step !== "success" && <p className="auth-switch"><Link href="/login">Back to log in</Link></p>}
           <div className="auth-security"><span>♧</span> Your account is protected and private.</div>
         </div>
         <div className="auth-copyright">© {new Date().getFullYear()} Rakib</div>

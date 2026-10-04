@@ -1,12 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import Script from "next/script";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { saveAccessToken } from "@/lib/session";
 
 type LoginResult = { accessToken: string; refreshToken: string };
+type GoogleCredential = { credential: string };
+type GoogleIdentityApi = {
+  accounts: {
+    id: {
+      initialize: (options: {
+        client_id: string;
+        callback: (response: GoogleCredential) => void;
+      }) => void;
+      renderButton: (element: HTMLElement, options: Record<string, string>) => void;
+    };
+  };
+};
+
+declare global {
+  interface Window {
+    google?: GoogleIdentityApi;
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +34,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleSubmittingRef = useRef(false);
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,6 +57,42 @@ export default function LoginPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleGoogleCredential(credential: string) {
+    if (googleSubmittingRef.current) return;
+    googleSubmittingRef.current = true;
+    setError("");
+    setSubmitting(true);
+    try {
+      const response = await apiRequest<LoginResult>("/api/v1/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ idToken: credential }),
+      });
+      saveAccessToken(response.data.accessToken);
+      router.replace("/");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to sign in with Google.");
+    } finally {
+      googleSubmittingRef.current = false;
+      setSubmitting(false);
+    }
+  }
+
+  function initializeGoogle() {
+    const button = googleButtonRef.current;
+    if (!googleClientId || !button || !window.google) return;
+    window.google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: (response) => void handleGoogleCredential(response.credential),
+    });
+    window.google.accounts.id.renderButton(button, {
+      theme: "outline",
+      size: "large",
+      text: "continue_with",
+      shape: "rectangular",
+      width: "360",
+    });
   }
 
   return (
@@ -104,6 +162,17 @@ export default function LoginPage() {
               {submitting ? "Logging in…" : "Log in"} <span aria-hidden="true">→</span>
             </button>
           </form>
+          {googleClientId ? (
+            <>
+              <div className="auth-divider"><span>or continue with</span></div>
+              <div className="google-signin-button" ref={googleButtonRef} />
+              <Script
+                onLoad={initializeGoogle}
+                src="https://accounts.google.com/gsi/client"
+                strategy="afterInteractive"
+              />
+            </>
+          ) : null}
           <p className="auth-switch">New to Rakib? <Link href="/register">Create an account</Link></p>
           <div className="auth-security"><span>♧</span> Your account is protected and private.</div>
         </div>

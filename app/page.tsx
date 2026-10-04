@@ -1,16 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { clearAccessToken, getAccessToken } from "@/lib/session";
-import { OperationsWorkspace } from "./operations";
+import { ProfileImageControl } from "./components/profile-image-control";
+
+const OperationsWorkspace = dynamic(
+  () => import("./operations").then((module) => module.OperationsWorkspace),
+  { ssr: false },
+);
 
 type User = {
   id: string;
   name: string;
   email: string;
   role: string;
+  imageUrl?: string;
 };
 
 type Schedule = {
@@ -19,6 +26,7 @@ type Schedule = {
   startTime: string;
   endTime: string;
   area: {
+    id: string;
     name: string;
     code: string;
     feeder?: {
@@ -28,7 +36,22 @@ type Schedule = {
   };
 };
 
-type Area = { id: string; name: string; code: string };
+type Area = {
+  id: string;
+  name: string;
+  code: string;
+  feeder?: {
+    id: string;
+    name: string;
+    code: string;
+    substation?: {
+      id: string;
+      name: string;
+      code: string;
+      zone?: { id: string; name: string; code: string };
+    };
+  };
+};
 type PaginatedData<T> = { data: T[]; meta: { total: number } };
 
 type AdminStats = {
@@ -72,9 +95,11 @@ function formatTime(value: string) {
 function AdminDashboard({
   data,
   onLogout,
+  onImageUploaded,
 }: {
   data: DashboardData;
   onLogout: () => void;
+  onImageUploaded: (imageUrl: string) => void;
 }) {
   const stats = data.adminStats;
   if (!stats) return null;
@@ -93,11 +118,20 @@ function AdminDashboard({
           <span className="brand-mark">R</span>
           Rakib
         </Link>
+        <nav className="dashboard-nav" aria-label="Main navigation">
+          <Link href="/">Overview</Link>
+          <Link href="/schedules">Schedules</Link>
+          <Link href="/areas">Service areas</Link>
+          <Link href="/incidents">Outages</Link>
+          <Link href="/payments">Payments</Link>
+          <Link href="/management">Management</Link>
+          <Link href="/analytics">Analytics</Link>
+        </nav>
         <div className="header-user">
           <span className="admin-role-badge">
             {data.user.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "ADMIN"}
           </span>
-          <span className="avatar">{data.user.name.charAt(0).toUpperCase()}</span>
+          <ProfileImageControl imageUrl={data.user.imageUrl} name={data.user.name} onImageUploaded={onImageUploaded} />
           <span className="header-user-name">{data.user.name}</span>
           <button className="text-button" onClick={onLogout}>
             Sign out
@@ -232,7 +266,7 @@ function AdminDashboard({
   );
 }
 
-function Dashboard({ data, onLogout }: { data: DashboardData; onLogout: () => void }) {
+function Dashboard({ data, onLogout, onImageUploaded }: { data: DashboardData; onLogout: () => void; onImageUploaded: (imageUrl: string) => void }) {
   const upcoming = data.schedules
     .filter((schedule) => new Date(schedule.endTime).getTime() >= Date.now())
     .sort(
@@ -247,8 +281,15 @@ function Dashboard({ data, onLogout }: { data: DashboardData; onLogout: () => vo
           <span className="brand-mark">R</span>
           Rakib
         </Link>
+        <nav className="dashboard-nav" aria-label="Main navigation">
+          <Link href="/">Overview</Link>
+          <Link href="/schedules">Schedules</Link>
+          <Link href="/areas">Service areas</Link>
+          <Link href="/incidents">Outages</Link>
+          {data.user.role !== "OPERATOR" && <Link href="/payments">Payments</Link>}
+        </nav>
         <div className="header-user">
-          <span className="avatar">{data.user.name.charAt(0).toUpperCase()}</span>
+          <ProfileImageControl imageUrl={data.user.imageUrl} name={data.user.name} onImageUploaded={onImageUploaded} />
           <span className="header-user-name">{data.user.name}</span>
           <button className="text-button" onClick={onLogout}>
             Sign out
@@ -479,9 +520,8 @@ export default function HomePage() {
 
     async function loadDashboard(accessToken: string) {
       try {
-        const profile = await apiRequest<User>("/api/v1/auth/me", {}, accessToken);
-        const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(profile.data.role);
-        const [schedulesResponse, areasResponse, adminStatsResponse] = await Promise.all([
+        const [profile, schedulesResponse, areasResponse] = await Promise.all([
+          apiRequest<User>("/api/v1/auth/me", {}, accessToken),
           apiRequest<PaginatedData<Schedule>>(
             "/api/v1/schedule?limit=100&sortBy=startTime&sortOrder=asc",
             {},
@@ -492,10 +532,11 @@ export default function HomePage() {
             {},
             accessToken,
           ),
-          isAdmin
-            ? apiRequest<AdminStats>("/api/v1/admin/dashboard-stats", {}, accessToken)
-            : Promise.resolve(null),
         ]);
+        const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(profile.data.role);
+        const adminStatsResponse = isAdmin
+          ? await apiRequest<AdminStats>("/api/v1/admin/dashboard-stats", {}, accessToken)
+          : null;
         setData({
           user: profile.data,
           schedules: schedulesResponse.data.data,
@@ -522,6 +563,13 @@ export default function HomePage() {
     setData(null);
   }
 
+  function updateProfileImage(imageUrl: string) {
+    setData((current) => current ? {
+      ...current,
+      user: { ...current.user, imageUrl },
+    } : current);
+  }
+
   if (loading) {
     return (
       <main className="loading-screen">
@@ -533,9 +581,9 @@ export default function HomePage() {
 
   if (data) {
     if (["ADMIN", "SUPER_ADMIN"].includes(data.user.role)) {
-      return <AdminDashboard data={data} onLogout={logout} />;
+      return <AdminDashboard data={data} onLogout={logout} onImageUploaded={updateProfileImage} />;
     }
-    return <Dashboard data={data} onLogout={logout} />;
+    return <Dashboard data={data} onLogout={logout} onImageUploaded={updateProfileImage} />;
   }
 
   return (
