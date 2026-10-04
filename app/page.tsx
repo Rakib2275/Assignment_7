@@ -121,9 +121,11 @@ function AdminDashboard({
         <nav className="dashboard-nav" aria-label="Main navigation">
           <Link href="/">Overview</Link>
           <Link href="/schedules">Schedules</Link>
+          <Link href="/schedules-areas">By area</Link>
           <Link href="/areas">Service areas</Link>
           <Link href="/incidents">Outages</Link>
           <Link href="/payments">Payments</Link>
+          <Link href="/users">Users</Link>
           <Link href="/management">Management</Link>
           <Link href="/analytics">Analytics</Link>
         </nav>
@@ -284,6 +286,7 @@ function Dashboard({ data, onLogout, onImageUploaded }: { data: DashboardData; o
         <nav className="dashboard-nav" aria-label="Main navigation">
           <Link href="/">Overview</Link>
           <Link href="/schedules">Schedules</Link>
+          <Link href="/schedules-areas">By area</Link>
           <Link href="/areas">Service areas</Link>
           <Link href="/incidents">Outages</Link>
           {data.user.role !== "OPERATOR" && <Link href="/payments">Payments</Link>}

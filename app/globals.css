@@ -337,6 +337,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .payment-link { width: 100%; margin-top: 4px; font-size: calc(14px + 1px); }
 .workspace-message { margin: 12px 0; padding: 11px 13px; border-radius: 6px; font-size: calc(14px + 1px); line-height: 1.5; }
 .workspace-error { border: 1px solid #f1d6d3; background: #fff7f5; color: #a3453b; }
+.workspace-success { border: 1px solid #dce9d6; background: #f5f9f1; color: #4e7449; }
 .workspace-notice { border: 1px solid #e0ead8; background: #f7faf4; color: #547449; }
 .workspace-empty { display: grid; min-height: 120px; place-items: center; padding: 20px; color: #77847b; text-align: center; font-size: calc(14px + 1px); line-height: 1.6; }
 .workspace-record-list { display: flex; flex-direction: column; }
@@ -378,6 +379,48 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .workspace-table td:first-child strong { color: #344139; font-size: calc(14px + 1px); }
 .workspace-table td:first-child span { margin-top: 3px; color: #7b867e; font-size: calc(12px + 1px); }
 .workspace-table select { min-width: 130px; }
+.workspace-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; color: #77847b; font-size: calc(12px + 1px); }
+.workspace-pagination > div { display: flex; align-items: center; gap: 12px; }
+.workspace-pagination .button { min-height: 38px; padding: 0 12px; font-size: calc(12px + 1px); }
+.workspace-heading-actions { display: flex; align-items: center; gap: 10px; }
+.workspace-heading-actions .button { min-height: 39px; padding: 0 13px; font-size: calc(12px + 1px); }
+.schedule-editor { margin: 18px 0; padding: 17px; border: 1px solid #e8ece5; border-radius: 8px; background: #fafbf8; }
+.schedule-editor .workspace-card-heading { margin-bottom: 8px; }
+.schedule-editor h4 { margin: 0; color: #344139; font-family: "Manrope", sans-serif; font-size: calc(16px + 1px); }
+.schedule-editor .back-link { margin: 0; }
+.schedule-actions { display: flex; align-items: center; gap: 8px; }
+.schedule-delete-action { background: #fff1ee; color: #a34f43; }
+.schedule-delete-action:hover:not(:disabled) { background: #ffe5df; }
+.schedule-directory-table td:first-child { min-width: 180px; }
+.schedule-directory-table td:nth-child(2) { min-width: 150px; }
+.schedule-directory-table td:nth-child(3), .schedule-directory-table td:nth-child(4) { min-width: 150px; }
+.schedule-directory-table td:nth-child(2) a strong, .schedule-directory-table td:nth-child(2) a span { display: block; }
+.schedule-directory-table td:nth-child(2) a strong { color: #344139; font-size: calc(14px + 1px); }
+.schedule-directory-table td:nth-child(2) a span { margin-top: 3px; color: #7b867e; font-size: calc(12px + 1px); }
+.schedule-directory-table td:nth-child(3) strong, .schedule-directory-table td:nth-child(3) span,
+.schedule-directory-table td:nth-child(4) strong, .schedule-directory-table td:nth-child(4) span { display: block; }
+.schedule-directory-table td:nth-child(3) span, .schedule-directory-table td:nth-child(4) span { margin-top: 3px; color: #7b867e; font-size: calc(12px + 1px); }
+.area-schedules-layout { display: grid; gap: 16px; }
+.area-schedule-filters { display: grid; max-width: 560px; gap: 8px; }
+.area-schedule-filters label { margin-top: 6px; color: #39443d; font-size: calc(13px + 1px); font-weight: 650; }
+.area-schedule-filters select, .area-schedule-date-row input { width: 100%; min-height: 43px; padding: 9px 11px; border: 1px solid #dfe5dd; border-radius: 6px; background: #fff; color: #334038; font: inherit; font-size: calc(14px + 1px); }
+.area-schedule-date-row { display: flex; align-items: center; gap: 12px; }
+.area-schedule-date-row .back-link { flex: 0 0 auto; margin: 0; }
+.area-schedule-code { margin: 5px 0 0; color: #7b867e; font-size: calc(12px + 1px); }
+.area-location-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 15px; }
+.area-location-summary > div { display: flex; min-width: 0; flex-direction: column; gap: 5px; padding: 12px; border-radius: 7px; background: #f4f7f1; }
+.area-location-summary span { color: #7c887f; font-size: calc(11px + 1px); }
+.area-location-summary strong { overflow: hidden; color: #435146; font-size: calc(13px + 1px); text-overflow: ellipsis; white-space: nowrap; }
+.area-schedule-list { display: grid; }
+.area-schedule-item { display: flex; align-items: center; gap: 18px; padding: 16px 4px; border-top: 1px solid #edf0eb; }
+.area-schedule-date { display: flex; min-width: 220px; flex-direction: column; gap: 5px; }
+.area-schedule-date span, .area-schedule-item-copy p { color: #78847b; font-size: calc(12px + 1px); }
+.area-schedule-date strong { color: #50674c; font-size: calc(14px + 1px); }
+.area-schedule-item-copy { min-width: 0; flex: 1; }
+.area-schedule-item-copy h4 { margin: 0; color: #344139; font-size: calc(15px + 1px); }
+.area-schedule-item-copy p { margin: 5px 0 0; }
+.area-schedule-indicator { padding: 6px 9px; border-radius: 16px; background: #edf5e8; color: #52784b; font-size: calc(11px + 1px); font-weight: 650; white-space: nowrap; }
+.area-schedule-create-link { display: block; margin-top: 8px; color: #496844; font-weight: 700; text-decoration: underline; }
 .table-action { padding: 8px 10px; border: 0; border-radius: 5px; background: #edf3e7; color: #496844; cursor: pointer; font-size: calc(12px + 1px); font-weight: 700; white-space: nowrap; }
 .table-action:hover:not(:disabled) { background: #e0ebd7; }
 .workspace-footnote { grid-column: 1 / -1; margin: 0; color: #89958c; font-size: calc(12px + 1px); line-height: 1.5; }
@@ -479,6 +522,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .incident-filters { grid-template-columns: 1fr 1fr; }
   .pagination-controls { align-items: flex-start; flex-direction: column; }
   .pagination-controls > div { width: 100%; justify-content: space-between; }
+  .workspace-pagination { align-items: flex-start; flex-direction: column; }
+  .workspace-pagination > div { width: 100%; justify-content: space-between; gap: 8px; }
+  .workspace-heading-actions { align-items: flex-end; flex-direction: column; }
+  .area-location-summary { grid-template-columns: 1fr; }
+  .area-schedule-item { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .area-schedule-date { min-width: 0; }
+  .area-schedule-date-row { align-items: flex-start; flex-direction: column; }
   .schedule-filters { grid-template-columns: 1fr 1fr; }
   .workspace-filters { grid-template-columns: 1fr 1fr; }
   .workspace-filters input { grid-column: 1 / -1; }

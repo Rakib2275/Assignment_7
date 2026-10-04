@@ -186,9 +186,12 @@ export default function AreasPage() {
         <nav className="workspace-route-nav" aria-label="Main navigation">
           <Link href="/">Overview</Link>
           <Link href="/schedules">Schedules</Link>
+          <Link href="/schedules-areas">By area</Link>
           <Link aria-current="page" href="/areas">Service areas</Link>
           <Link href="/incidents">Outages</Link>
           {!operator && <Link href="/payments">Payments</Link>}
+          {admin && <Link href="/users">Users</Link>}
+          {admin && <Link href="/analytics">Analytics</Link>}
           {admin && <Link href="/management">Management</Link>}
         </nav>
         <div className="header-user">
