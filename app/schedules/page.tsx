@@ -79,6 +79,8 @@ function SchedulesDirectory({ role }: { role: string }) {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Schedule | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "generate">("create");
+  const [durationMinutes, setDurationMinutes] = useState("60");
   const [form, setForm] = useState<ScheduleForm>(emptyForm);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -157,6 +159,16 @@ function SchedulesDirectory({ role }: { role: string }) {
 
   function startCreate() {
     setEditing(null);
+    setFormMode("create");
+    setForm({ ...emptyForm, areaId: areaId || areas[0]?.id || "" });
+    setShowForm(true);
+    setNotice("");
+  }
+
+  function startGenerate() {
+    setEditing(null);
+    setFormMode("generate");
+    setDurationMinutes("60");
     setForm({ ...emptyForm, areaId: areaId || areas[0]?.id || "" });
     setShowForm(true);
     setNotice("");
@@ -164,6 +176,7 @@ function SchedulesDirectory({ role }: { role: string }) {
 
   function startEdit(schedule: Schedule) {
     setEditing(schedule);
+    setFormMode("create");
     setForm({
       title: schedule.title,
       areaId: schedule.area.id,
@@ -181,7 +194,17 @@ function SchedulesDirectory({ role }: { role: string }) {
       setError("Your session has expired. Please log in again.");
       return;
     }
-    if (new Date(form.endTime) <= new Date(form.startTime)) {
+    if (formMode === "generate") {
+      const duration = Number(durationMinutes);
+      if (!Number.isInteger(duration) || duration < 1) {
+        setError("Schedule duration must be a positive whole number of minutes.");
+        return;
+      }
+      if (!Number.isFinite(new Date(form.startTime).getTime())) {
+        setError("Enter a valid schedule start time.");
+        return;
+      }
+    } else if (new Date(form.endTime) <= new Date(form.startTime)) {
       setError("The end time must be after the start time.");
       return;
     }
@@ -189,11 +212,15 @@ function SchedulesDirectory({ role }: { role: string }) {
     setSaving(true);
     setError("");
     setNotice("");
+    const startTime = new Date(form.startTime);
+    const endTime = formMode === "generate"
+      ? new Date(startTime.getTime() + Number(durationMinutes) * 60 * 1000)
+      : new Date(form.endTime);
     const payload = {
-      title: form.title.trim(),
+      ...(form.title.trim() ? { title: form.title.trim() } : {}),
       areaId: form.areaId,
-      startTime: new Date(form.startTime).toISOString(),
-      endTime: new Date(form.endTime).toISOString(),
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
     };
     try {
       if (editing) {
@@ -203,7 +230,25 @@ function SchedulesDirectory({ role }: { role: string }) {
           token,
         );
         setNotice("Schedule updated successfully.");
+      } else if (formMode === "generate") {
+        await apiRequest<Schedule>(
+          "/api/v1/schedule/generate",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              ...payload,
+              durationMinutes: Number(durationMinutes),
+            }),
+          },
+          token,
+        );
+        setNotice("Schedule generated successfully.");
       } else {
+        if (!payload.title) {
+          setError("Enter a title for the schedule.");
+          setSaving(false);
+          return;
+        }
         await apiRequest<Schedule>(
           "/api/v1/schedule",
           { method: "POST", body: JSON.stringify(payload) },
@@ -285,9 +330,14 @@ function SchedulesDirectory({ role }: { role: string }) {
         <div className="workspace-heading-actions">
           <span className="panel-count">{total} schedules</span>
           {canManage && (
-            <button className="button button-dark" disabled={!areas.length} onClick={startCreate} type="button">
-              Add schedule
-            </button>
+            <>
+              <button className="button button-dark" disabled={!areas.length} onClick={startCreate} type="button">
+                Add schedule
+              </button>
+              <button className="button button-light" disabled={!areas.length} onClick={startGenerate} type="button">
+                Generate by duration
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -314,12 +364,16 @@ function SchedulesDirectory({ role }: { role: string }) {
       {showForm && canManage && (
         <section className="schedule-editor" aria-labelledby="schedule-editor-heading">
           <div className="workspace-card-heading">
-            <h4 id="schedule-editor-heading">{editing ? "Edit schedule" : "Create schedule"}</h4>
+            <h4 id="schedule-editor-heading">
+              {editing ? "Edit schedule" : formMode === "generate" ? "Generate schedule" : "Create schedule"}
+            </h4>
             <button className="back-link" onClick={() => setShowForm(false)} type="button">Cancel</button>
           </div>
           <form className="workspace-form" onSubmit={submitForm}>
-            <label htmlFor="schedule-title">Schedule title</label>
-            <input id="schedule-title" maxLength={150} minLength={3} onChange={(event) => setForm({ ...form, title: event.target.value })} required value={form.title} />
+            <label htmlFor="schedule-title">
+              Schedule title {formMode === "generate" && !editing && <span className="optional-label">(optional)</span>}
+            </label>
+            <input id="schedule-title" maxLength={150} minLength={formMode === "generate" && !form.title ? undefined : 3} onChange={(event) => setForm({ ...form, title: event.target.value })} required={formMode !== "generate" || Boolean(form.title)} value={form.title} />
             <label htmlFor="schedule-area">Service area</label>
             <select id="schedule-area" onChange={(event) => setForm({ ...form, areaId: event.target.value })} required value={form.areaId}>
               <option value="">Select an area</option>
@@ -330,13 +384,20 @@ function SchedulesDirectory({ role }: { role: string }) {
                 <label htmlFor="schedule-start">Start</label>
                 <input id="schedule-start" onChange={(event) => setForm({ ...form, startTime: event.target.value })} required type="datetime-local" value={form.startTime} />
               </div>
-              <div>
+              {formMode === "generate" && !editing ? (
+                <div>
+                  <label htmlFor="schedule-duration">Duration (minutes)</label>
+                  <input id="schedule-duration" min="1" onChange={(event) => setDurationMinutes(event.target.value)} required step="1" type="number" value={durationMinutes} />
+                </div>
+              ) : (
+                <div>
                 <label htmlFor="schedule-end">End</label>
                 <input id="schedule-end" min={form.startTime || undefined} onChange={(event) => setForm({ ...form, endTime: event.target.value })} required type="datetime-local" value={form.endTime} />
-              </div>
+                </div>
+              )}
             </div>
             <button className="button button-dark workspace-submit" disabled={saving} type="submit">
-              {saving ? "Saving…" : editing ? "Save changes" : "Create schedule"}
+              {saving ? "Saving…" : editing ? "Save changes" : formMode === "generate" ? "Generate schedule" : "Create schedule"}
             </button>
           </form>
         </section>

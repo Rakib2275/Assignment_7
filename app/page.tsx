@@ -1,16 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { clearAccessToken, getAccessToken } from "@/lib/session";
 import { ProfileImageControl } from "./components/profile-image-control";
-
-const OperationsWorkspace = dynamic(
-  () => import("./operations").then((module) => module.OperationsWorkspace),
-  { ssr: false },
-);
+import { OperationsWorkspace } from "./operations";
 
 type User = {
   id: string;
@@ -123,11 +118,15 @@ function AdminDashboard({
           <Link href="/schedules">Schedules</Link>
           <Link href="/schedules-areas">By area</Link>
           <Link href="/areas">Service areas</Link>
-          <Link href="/incidents">Outages</Link>
+          <Link href="/outage">Outages</Link>
+          <Link href="/substation">Substations</Link>
+          <Link href="/feeder">Feeders</Link>
+          <Link href="/zone">Zones</Link>
           <Link href="/payments">Payments</Link>
           <Link href="/users">Users</Link>
-          <Link href="/management">Management</Link>
+          <Link href="/admin">Admin</Link>
           <Link href="/analytics">Analytics</Link>
+          <Link href="/audit-log">Audit log</Link>
         </nav>
         <div className="header-user">
           <span className="admin-role-badge">
@@ -288,8 +287,12 @@ function Dashboard({ data, onLogout, onImageUploaded }: { data: DashboardData; o
           <Link href="/schedules">Schedules</Link>
           <Link href="/schedules-areas">By area</Link>
           <Link href="/areas">Service areas</Link>
-          <Link href="/incidents">Outages</Link>
+          <Link href="/outage">Outages</Link>
+          <Link href="/substation">Substations</Link>
+          <Link href="/feeder">Feeders</Link>
           {data.user.role !== "OPERATOR" && <Link href="/payments">Payments</Link>}
+          {["ADMIN", "SUPER_ADMIN"].includes(data.user.role) && <Link href="/zone">Zones</Link>}
+          {["ADMIN", "SUPER_ADMIN"].includes(data.user.role) && <Link href="/admin">Admin</Link>}
         </nav>
         <div className="header-user">
           <ProfileImageControl imageUrl={data.user.imageUrl} name={data.user.name} onImageUploaded={onImageUploaded} />

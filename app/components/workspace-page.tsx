@@ -8,10 +8,16 @@ import { clearAccessToken, getAccessToken } from "@/lib/session";
 
 type WorkspaceRoute =
   | "analytics"
+  | "admin"
   | "audit-log"
   | "incidents"
+  | "outage"
+  | "payments"
   | "schedules"
   | "schedules-areas"
+  | "feeders"
+  | "substations"
+  | "zone"
   | "users";
 
 type User = {
@@ -26,6 +32,11 @@ const pageDetails: Record<WorkspaceRoute, { eyebrow: string; title: string; desc
     title: "Analytics",
     description: "Track service activity, outages, users, and payments across your network.",
   },
+  admin: {
+    eyebrow: "ADMIN CONSOLE",
+    title: "Administration",
+    description: "Monitor platform operations and open administrative tools.",
+  },
   "audit-log": {
     eyebrow: "SYSTEM ACTIVITY",
     title: "Audit log",
@@ -35,6 +46,31 @@ const pageDetails: Record<WorkspaceRoute, { eyebrow: string; title: string; desc
     eyebrow: "SERVICE OPERATIONS",
     title: "Outages",
     description: "Review outage reports and service updates for your network.",
+  },
+  outage: {
+    eyebrow: "SERVICE OPERATIONS",
+    title: "Outage reports",
+    description: "Report service interruptions or follow outage updates for your area.",
+  },
+  payments: {
+    eyebrow: "ACCOUNT BILLING",
+    title: "Payments",
+    description: "Start a bKash payment and review transaction history.",
+  },
+  feeders: {
+    eyebrow: "NETWORK INFRASTRUCTURE",
+    title: "Feeders",
+    description: "Browse feeder circuits and the substations and service areas they connect.",
+  },
+  substations: {
+    eyebrow: "NETWORK INFRASTRUCTURE",
+    title: "Substations",
+    description: "Browse substations and the distribution zones they serve.",
+  },
+  zone: {
+    eyebrow: "NETWORK INFRASTRUCTURE",
+    title: "Distribution zones",
+    description: "Manage the distribution zones that organize your service network.",
   },
   schedules: {
     eyebrow: "SERVICE OPERATIONS",
@@ -123,7 +159,7 @@ export function WorkspacePage({
   }
 
   const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(user.role);
-  if ((page === "analytics" || page === "audit-log" || page === "users") && !isAdmin) {
+  if ((page === "admin" || page === "analytics" || page === "audit-log" || page === "users" || page === "zone") && !isAdmin) {
     return (
       <main className="workspace-route-empty">
         <Link className="brand" href="/">
@@ -131,6 +167,18 @@ export function WorkspacePage({
         </Link>
         <h1>Administrator access required.</h1>
         <p>This workspace is only available to platform administrators.</p>
+        <Link className="button button-dark" href="/">Back to overview</Link>
+      </main>
+    );
+  }
+  if (page === "payments" && !isAdmin && user.role !== "CUSTOMER") {
+    return (
+      <main className="workspace-route-empty">
+        <Link className="brand" href="/">
+          <span className="brand-mark">R</span>Rakib
+        </Link>
+        <h1>Payments aren’t available for this account.</h1>
+        <p>Sign in as a customer or administrator to view payment records.</p>
         <Link className="button button-dark" href="/">Back to overview</Link>
       </main>
     );
@@ -150,7 +198,12 @@ export function WorkspacePage({
           <Link aria-current={page === "schedules" ? "page" : undefined} href="/schedules">Schedules</Link>
           <Link aria-current={page === "schedules-areas" ? "page" : undefined} href="/schedules-areas">By area</Link>
           <Link href="/areas">Service areas</Link>
-          <Link href="/incidents">Outages</Link>
+          <Link aria-current={page === "outage" || page === "incidents" ? "page" : undefined} href="/outage">Outages</Link>
+          {(isAdmin || user.role === "CUSTOMER") && <Link aria-current={page === "payments" ? "page" : undefined} href="/payments">Payments</Link>}
+          <Link aria-current={page === "substations" ? "page" : undefined} href="/substation">Substations</Link>
+          <Link aria-current={page === "feeders" ? "page" : undefined} href="/feeder">Feeders</Link>
+          {isAdmin && <Link aria-current={page === "zone" ? "page" : undefined} href="/zone">Zones</Link>}
+          {isAdmin && <Link aria-current={page === "admin" ? "page" : undefined} href="/admin">Admin</Link>}
           {isAdmin && <Link href="/users">Users</Link>}
           {isAdmin && <Link href="/analytics">Analytics</Link>}
           {isAdmin && <Link href="/audit-log">Audit log</Link>}

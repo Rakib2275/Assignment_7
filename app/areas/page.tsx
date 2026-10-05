@@ -50,6 +50,8 @@ type AreaPageData = {
   };
 };
 
+type AreaForm = { name: string; code: string; feederId: string };
+
 function messageFor(error: unknown) {
   return error instanceof Error ? error.message : "Unable to load service areas.";
 }
@@ -62,11 +64,15 @@ export default function AreasPage() {
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [feederId, setFeederId] = useState("");
+  const [areaForm, setAreaForm] = useState<AreaForm>({ name: "", code: "", feederId: "" });
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [profileLoading, setProfileLoading] = useState(true);
   const [areasLoading, setAreasLoading] = useState(true);
+  const [savingArea, setSavingArea] = useState(false);
+  const [areaNotice, setAreaNotice] = useState("");
+  const [areaReloadKey, setAreaReloadKey] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -134,7 +140,7 @@ export default function AreasPage() {
     }
 
     void loadAreas();
-  }, [appliedSearch, feederId, page]);
+  }, [appliedSearch, feederId, page, areaReloadKey]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -142,6 +148,41 @@ export default function AreasPage() {
     if (nextSearch === appliedSearch && page === 1) return;
     setAppliedSearch(nextSearch);
     setPage(1);
+  }
+
+  async function createArea(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const token = getAccessToken();
+    if (!token) {
+      setError("Your session has expired. Please log in again.");
+      return;
+    }
+
+    setSavingArea(true);
+    setError("");
+    setAreaNotice("");
+    try {
+      await apiRequest<Area>(
+        "/api/v1/area",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name: areaForm.name.trim(),
+            code: areaForm.code.trim().toUpperCase(),
+            feederId: areaForm.feederId,
+          }),
+        },
+        token,
+      );
+      setAreaForm({ name: "", code: "", feederId: "" });
+      setAreaNotice("Service area created successfully.");
+      setPage(1);
+      setAreaReloadKey((currentKey) => currentKey + 1);
+    } catch (requestError) {
+      setError(messageFor(requestError));
+    } finally {
+      setSavingArea(false);
+    }
   }
 
   function logout() {
@@ -188,11 +229,15 @@ export default function AreasPage() {
           <Link href="/schedules">Schedules</Link>
           <Link href="/schedules-areas">By area</Link>
           <Link aria-current="page" href="/areas">Service areas</Link>
-          <Link href="/incidents">Outages</Link>
-          {!operator && <Link href="/payments">Payments</Link>}
+          <Link href="/outage">Outages</Link>
+          <Link href="/substation">Substations</Link>
+          <Link href="/feeder">Feeders</Link>
+          {(admin || user.role === "CUSTOMER") && <Link href="/payments">Payments</Link>}
           {admin && <Link href="/users">Users</Link>}
           {admin && <Link href="/analytics">Analytics</Link>}
-          {admin && <Link href="/management">Management</Link>}
+          {admin && <Link href="/zone">Zones</Link>}
+          {admin && <Link href="/admin">Admin</Link>}
+          {admin && <Link href="/audit-log">Audit log</Link>}
         </nav>
         <div className="header-user">
           {admin && (
@@ -229,6 +274,52 @@ export default function AreasPage() {
             <span className="panel-count">{total} areas</span>
           </div>
 
+          {admin && (
+            <form className="area-create-form" onSubmit={createArea}>
+              <div>
+                <span className="eyebrow">ADMINISTRATION</span>
+                <h3>Add a service area</h3>
+              </div>
+              <label>
+                Area name
+                <input
+                  maxLength={100}
+                  minLength={2}
+                  onChange={(event) => setAreaForm({ ...areaForm, name: event.target.value })}
+                  required
+                  value={areaForm.name}
+                />
+              </label>
+              <label>
+                Area code
+                <input
+                  maxLength={20}
+                  minLength={2}
+                  onChange={(event) => setAreaForm({ ...areaForm, code: event.target.value.toUpperCase() })}
+                  required
+                  value={areaForm.code}
+                />
+              </label>
+              <label>
+                Feeder
+                <select
+                  onChange={(event) => setAreaForm({ ...areaForm, feederId: event.target.value })}
+                  required
+                  value={areaForm.feederId}
+                >
+                  <option value="">Select a feeder</option>
+                  {feeders.map((feeder) => (
+                    <option key={feeder.id} value={feeder.id}>{feeder.name} · {feeder.code}</option>
+                  ))}
+                </select>
+              </label>
+              <button className="button button-dark" disabled={savingArea || !feeders.length} type="submit">
+                {savingArea ? "Creating…" : "Create area"}
+              </button>
+            </form>
+          )}
+
+          {areaNotice && <p className="workspace-message workspace-success" role="status">{areaNotice}</p>}
           <form className="workspace-filters" onSubmit={submitSearch}>
             <input
               aria-label="Search service areas"
