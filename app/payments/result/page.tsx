@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { getAccessToken } from "@/lib/session";
-import { WorkspacePage } from "../../components/workspace-page";
 
 type Payment = {
   id: string;
@@ -35,19 +34,21 @@ function formatDate(value: string) {
 
 function PaymentResultDetails() {
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [paymentReference, setPaymentReference] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const paymentId = new URLSearchParams(window.location.search).get("paymentId");
     const token = getAccessToken();
-    if (!token) {
-      setError("Your session has expired. Please log in again to view this payment.");
+    if (!paymentId) {
+      setError("The payment reference is missing. Check your payment history for the latest status.");
       setLoading(false);
       return;
     }
-    if (!paymentId) {
-      setError("The payment reference is missing. Check your payment history for the latest status.");
+    setPaymentReference(paymentId);
+    if (!token) {
+      setError("This payment was not confirmed. Sign in to view the latest transaction status.");
       setLoading(false);
       return;
     }
@@ -64,13 +65,9 @@ function PaymentResultDetails() {
           accessToken,
         );
         if (!cancelled) setPayment(response.data);
-      } catch (requestError) {
+      } catch {
         if (!cancelled) {
-          setError(
-            requestError instanceof Error
-              ? requestError.message
-              : "Unable to load payment details.",
-          );
+          setError("This payment was not confirmed. Sign in to view the latest transaction status.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -93,7 +90,11 @@ function PaymentResultDetails() {
         <>
           <h2 id="payment-result-heading">Payment not completed</h2>
           <p className="workspace-message workspace-error" role="alert">{error}</p>
-          <Link className="button button-light" href="/payments">Go to payment history</Link>
+          {paymentReference && <p className="payment-callback-reference"><strong>Payment reference</strong>{paymentReference}</p>}
+          <div className="payment-result-actions">
+            <Link className="button button-dark" href="/login">Sign in to view status</Link>
+            <Link className="button button-light" href="/">Back to overview</Link>
+          </div>
         </>
       ) : payment ? (
         <>
@@ -126,8 +127,9 @@ function PaymentResultDetails() {
 
 export default function PaymentResultPage() {
   return (
-    <WorkspacePage page="payments">
-      {() => <div className="payments-workspace"><PaymentResultDetails /></div>}
-    </WorkspacePage>
+    <main className="payment-callback-shell">
+      <Link className="brand" href="/"><span className="brand-mark">R</span>Rakib</Link>
+      <div className="payments-workspace"><PaymentResultDetails /></div>
+    </main>
   );
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { clearAccessToken, getAccessToken } from "@/lib/session";
 import { ProfileImageControl } from "./components/profile-image-control";
+import { AdminSidebar } from "./components/admin-sidebar";
 import { OperationsWorkspace } from "./operations";
 
 type User = {
@@ -113,21 +114,6 @@ function AdminDashboard({
           <span className="brand-mark">R</span>
           Rakib
         </Link>
-        <nav className="dashboard-nav" aria-label="Main navigation">
-          <Link href="/">Overview</Link>
-          <Link href="/schedules">Schedules</Link>
-          <Link href="/schedules-areas">By area</Link>
-          <Link href="/areas">Service areas</Link>
-          <Link href="/outage">Outages</Link>
-          <Link href="/substation">Substations</Link>
-          <Link href="/feeder">Feeders</Link>
-          <Link href="/zone">Zones</Link>
-          <Link href="/payments">Payments</Link>
-          <Link href="/users">Users</Link>
-          <Link href="/admin">Admin</Link>
-          <Link href="/analytics">Analytics</Link>
-          <Link href="/audit-log">Audit log</Link>
-        </nav>
         <div className="header-user">
           <span className="admin-role-badge">
             {data.user.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "ADMIN"}
@@ -140,7 +126,9 @@ function AdminDashboard({
         </div>
       </header>
 
-      <section className="dashboard-content">
+      <div className="admin-workspace-layout">
+        <AdminSidebar />
+      <section className="dashboard-content admin-dashboard-content">
         <div className="dashboard-welcome">
           <div>
             <span className="eyebrow">SYSTEM OVERVIEW</span>
@@ -263,6 +251,7 @@ function AdminDashboard({
         <p className="dashboard-note">Platform statistics are provided by the service backend.</p>
         <OperationsWorkspace user={data.user} areas={data.areas} schedules={data.schedules} />
       </section>
+      </div>
     </main>
   );
 }

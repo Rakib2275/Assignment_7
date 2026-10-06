@@ -1,8 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { getAccessToken } from "@/lib/session";
+import { rememberPaymentOutage } from "@/lib/payment-outages";
 import { WorkspacePage } from "../components/workspace-page";
 
 type Report = {
@@ -24,6 +26,7 @@ type Payment = {
 };
 
 type PaymentStart = Payment & { paymentURL: string };
+type PaymentFilter = "ALL" | "INITIATED" | "SUCCESS" | "FAILED" | "CANCELLED";
 
 function messageFor(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -59,10 +62,12 @@ function PaymentWorkspace({ role }: { role: string }) {
   const [checkout, setCheckout] = useState<PaymentStart | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("ALL");
   const [loading, setLoading] = useState(true);
   const [startingPayment, setStartingPayment] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [historyError, setHistoryError] = useState("");
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
@@ -70,6 +75,7 @@ function PaymentWorkspace({ role }: { role: string }) {
     if (!token) {
       setLoading(false);
       setError("Your session has expired. Please log in again.");
+      setHistoryError("Your session has expired. Please log in again.");
       return;
     }
     const accessToken = token;
@@ -77,34 +83,14 @@ function PaymentWorkspace({ role }: { role: string }) {
 
     async function loadPayments() {
       setLoading(true);
-      const callbackUrl = new URL(window.location.href);
-      const callbackStatus = callbackUrl.searchParams.get("paymentStatus");
-      const transactionId = callbackUrl.searchParams.get("transactionId");
-      const callbackMessages: Record<string, string> = {
-        success: "bKash payment completed successfully. Your payment history has been refreshed.",
-        failed: "bKash could not complete the payment. Your payment history has been refreshed.",
-        cancelled: "The bKash payment was cancelled. Your payment history has been refreshed.",
-      };
-      if (callbackStatus && callbackMessages[callbackStatus]) {
-        const transactionNote = transactionId ? ` Transaction: ${transactionId}.` : "";
-        setNotice(`${callbackMessages[callbackStatus]}${transactionNote}`);
-        callbackUrl.searchParams.delete("paymentStatus");
-        callbackUrl.searchParams.delete("transactionId");
-        window.history.replaceState(
-          window.history.state,
-          "",
-          `${callbackUrl.pathname}${callbackUrl.search}${callbackUrl.hash}`,
-        );
-      }
-
+      setHistoryError("");
       try {
         const response = await apiRequest<Payment[]>("/api/v1/payment", {}, accessToken);
         if (!cancelled) {
           setPayments(response.data);
-          setError("");
         }
       } catch (requestError) {
-        if (!cancelled) setError(messageFor(requestError, "Unable to load payments."));
+        if (!cancelled) setHistoryError(messageFor(requestError, "Unable to load payments."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -113,6 +99,20 @@ function PaymentWorkspace({ role }: { role: string }) {
     void loadPayments();
     return () => { cancelled = true; };
   }, [reloadKey]);
+
+  useEffect(() => {
+    if (!checkout?.paymentURL) return;
+    let refreshTimer: number | undefined;
+    const refreshAfterCheckout = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => setReloadKey((key) => key + 1), 1200);
+    };
+    window.addEventListener("focus", refreshAfterCheckout);
+    return () => {
+      window.removeEventListener("focus", refreshAfterCheckout);
+      window.clearTimeout(refreshTimer);
+    };
+  }, [checkout?.paymentURL]);
 
   useEffect(() => {
     if (!canInitiate) return;
@@ -132,7 +132,13 @@ function PaymentWorkspace({ role }: { role: string }) {
         const response = await apiRequest<Report[]>("/api/v1/outage/my-reports", {}, accessToken);
         if (cancelled) return;
         setReports(response.data);
-        if (response.data[0]) setSelectedReportId((currentId) => currentId || response.data[0].id);
+        const requestedReportId = new URLSearchParams(window.location.search).get("outageId") ?? "";
+        const requestedReportExists = response.data.some((report) => report.id === requestedReportId);
+        if (response.data[0]) {
+          setSelectedReportId((currentId) =>
+            (requestedReportExists ? requestedReportId : currentId) || response.data[0].id,
+          );
+        }
       } catch (requestError) {
         if (!cancelled) setReportsError(messageFor(requestError, "Unable to load your outage reports."));
       } finally {
@@ -174,11 +180,16 @@ function PaymentWorkspace({ role }: { role: string }) {
         },
         token,
       );
+      rememberPaymentOutage(response.data.id, selectedReportId);
+      if (!response.data.paymentURL) {
+        throw new Error("The payment was recorded, but bKash did not return a checkout link. Check your payment history before trying again.");
+      }
       setCheckout(response.data);
       setNotice("Payment started. Continue securely on bKash to complete it.");
       setReloadKey((currentKey) => currentKey + 1);
     } catch (requestError) {
       setError(messageFor(requestError, "Unable to start the bKash payment."));
+      setReloadKey((currentKey) => currentKey + 1);
     } finally {
       setStartingPayment(false);
     }
@@ -206,6 +217,14 @@ function PaymentWorkspace({ role }: { role: string }) {
     }
   }
 
+  const visiblePayments = paymentFilter === "ALL"
+    ? payments
+    : payments.filter((payment) => payment.status === paymentFilter);
+  const successfulTotal = payments
+    .filter((payment) => payment.status === "SUCCESS")
+    .reduce((total, payment) => total + payment.amount, 0);
+  const pendingCount = payments.filter((payment) => payment.status === "INITIATED").length;
+
   return (
     <div className="payments-workspace">
       {canInitiate && (
@@ -222,7 +241,8 @@ function PaymentWorkspace({ role }: { role: string }) {
             </div>
           ) : !reports.length ? (
             <div className="workspace-empty">
-              A payment needs to be associated with one of your outage reports. Report an outage first, then return here to pay.
+              <span>You need an outage report before opening bKash checkout.</span>
+              <a className="button button-light" href="/outage">Report an outage</a>
             </div>
           ) : (
             <form className="payment-start-form" onSubmit={startPayment}>
@@ -235,6 +255,7 @@ function PaymentWorkspace({ role }: { role: string }) {
                 ))}
               </select>
               <label htmlFor="payment-amount">Amount (BDT)</label>
+              <p className="payment-amount-help">Enter the amount you intend to pay. Maximum ৳10,000 per checkout.</p>
               <input
                 id="payment-amount"
                 max="10000"
@@ -252,7 +273,7 @@ function PaymentWorkspace({ role }: { role: string }) {
           )}
           {checkout?.paymentURL && (
             <div className="payment-checkout">
-              <p>Transaction <strong>{checkout.transactionId}</strong> is ready. Complete it in bKash, then refresh your payment history to see its status.</p>
+              <p>Transaction <strong>{checkout.transactionId}</strong> is ready. A pending payment record has been created on your account. The backend does not link it to the selected outage report. Finish checkout in bKash; your history refreshes when you return.</p>
               <a className="button button-dark payment-link" href={checkout.paymentURL} rel="noopener noreferrer" target="_blank">
                 Open bKash checkout <span aria-hidden="true">↗</span>
               </a>
@@ -270,15 +291,42 @@ function PaymentWorkspace({ role }: { role: string }) {
           </div>
         </div>
 
+        {!loading && !historyError && payments.length > 0 && (
+          <>
+            <div className="payment-summary" aria-label="Payment summary">
+              <article><span>Transactions</span><strong>{payments.length}</strong></article>
+              <article><span>Paid successfully</span><strong>{formatMoney(successfulTotal)}</strong></article>
+              <article><span>Awaiting confirmation</span><strong>{pendingCount}</strong></article>
+            </div>
+            <div className="payment-history-toolbar">
+              <label htmlFor="payment-filter">Filter by status
+                <select id="payment-filter" onChange={(event) => setPaymentFilter(event.target.value as PaymentFilter)} value={paymentFilter}>
+                  <option value="ALL">All statuses</option>
+                  <option value="INITIATED">Awaiting confirmation</option>
+                  <option value="SUCCESS">Successful</option>
+                  <option value="FAILED">Failed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </label>
+              <span>{visiblePayments.length} shown</span>
+            </div>
+          </>
+        )}
+
         {error && <p className="workspace-message workspace-error" role="alert">{error}</p>}
         {notice && <p className="workspace-message workspace-success" role="status">{notice}</p>}
 
-        {loading ? <div className="workspace-empty">Loading payments…</div> : payments.length ? (
+        {loading ? <div className="workspace-empty">Loading payments…</div> : historyError ? (
+          <div className="workspace-empty payment-history-error">
+            <p>{historyError}</p>
+            <button className="button button-light" onClick={() => setReloadKey((key) => key + 1)} type="button">Try again</button>
+          </div>
+        ) : visiblePayments.length ? (
           <div className="workspace-table-wrap">
             <table className="workspace-table payment-table">
               <thead><tr><th>Transaction</th>{!canInitiate && <th>Customer</th>}<th>Amount</th><th>Status</th><th>Created</th><th /></tr></thead>
               <tbody>
-                {payments.map((payment) => (
+                {visiblePayments.map((payment) => (
                   <tr key={payment.id}>
                     <td><strong>{payment.transactionId}</strong><span>{payment.bkashPaymentId ? `bKash ${payment.bkashPaymentId}` : "bKash checkout"}</span></td>
                     {!canInitiate && <td><strong>{payment.user?.name ?? "Unknown user"}</strong><span>{payment.user?.email ?? ""}</span></td>}
@@ -291,7 +339,7 @@ function PaymentWorkspace({ role }: { role: string }) {
               </tbody>
             </table>
           </div>
-        ) : <div className="workspace-empty">No payment records have been created yet.</div>}
+        ) : payments.length ? <div className="workspace-empty">No payments match this status.</div> : <div className="workspace-empty">No payment records have been created yet.</div>}
 
         {selectedPayment && (
           <section className="payment-detail" aria-label="Payment details">
@@ -303,6 +351,7 @@ function PaymentWorkspace({ role }: { role: string }) {
             <p><strong>Status:</strong> {selectedPayment.status.replaceAll("_", " ")}</p>
             <p><strong>Created:</strong> {formatDate(selectedPayment.createdAt)}</p>
             <p><strong>Updated:</strong> {formatDate(selectedPayment.updatedAt)}</p>
+            {selectedPayment.bkashPaymentId && <p><strong>bKash payment ID:</strong> {selectedPayment.bkashPaymentId}</p>}
             {selectedPayment.user && <p><strong>Account:</strong> {selectedPayment.user.name} · {selectedPayment.user.email}</p>}
           </section>
         )}
@@ -312,6 +361,25 @@ function PaymentWorkspace({ role }: { role: string }) {
 }
 
 export default function PaymentsPage() {
+  const router = useRouter();
+
+  // Some bKash callback configurations return to /payments instead of the
+  // dedicated callback route. Handle that return before the workspace auth
+  // guard so customers still see the public payment result page.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentId = params.get("paymentId") ?? params.get("paymentID");
+    const status = (params.get("status") ?? params.get("paymentStatus") ?? "").toLowerCase();
+    if (!paymentId && !status) return;
+    const destination = status === "success" ? "/payments/success" : "/payments/result";
+    const resultParams = new URLSearchParams();
+    if (paymentId) resultParams.set("paymentId", paymentId);
+    if (status) resultParams.set("paymentStatus", status);
+    const transactionId = params.get("transactionId");
+    if (transactionId) resultParams.set("transactionId", transactionId);
+    router.replace(`${destination}?${resultParams.toString()}`);
+  }, [router]);
+
   return (
     <WorkspacePage page="payments">
       {(user) => <PaymentWorkspace role={user.role} />}

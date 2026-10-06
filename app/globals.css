@@ -217,6 +217,17 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .notice-bar { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 15px; background: #fff7e8; color: #7d6331; font-size: calc(12px + 1px); }
 .notice-bar a { text-decoration: underline; font-weight: 700; }
 .dashboard-shell { min-height: 100vh; background: #f7f8f4; }
+.admin-workspace-layout { display: grid; min-height: calc(100vh - 72px); grid-template-columns: 244px minmax(0, 1fr); align-items: start; }
+.admin-sidebar { position: sticky; top: 0; min-height: calc(100vh - 72px); padding: 28px 16px 24px; border-right: 1px solid #e6eae3; background: #fff; }
+.admin-sidebar-heading { display: block; margin: 0 10px 14px; color: #9aa49b; font-size: calc(8px + 1px); font-weight: 700; letter-spacing: 1.2px; }
+.admin-sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
+.admin-sidebar-link { display: flex; min-height: 42px; align-items: center; gap: 12px; padding: 0 11px; border-radius: 7px; color: #68756b; font-size: calc(11px + 1px); font-weight: 600; transition: background .15s ease, color .15s ease; }
+.admin-sidebar-link:hover { background: #f5f7f2; color: var(--green-dark); }
+.admin-sidebar-link.active { background: #edf3e8; color: #355c40; }
+.admin-sidebar-icon { display: grid; width: 22px; height: 22px; place-items: center; color: #82917f; font-size: calc(15px + 1px); }
+.admin-sidebar-link.active .admin-sidebar-icon { color: var(--green); }
+.admin-dashboard-content { width: min(1160px, calc(100% - 64px)); margin: 0 auto; }
+.admin-dashboard-content.workspace-route-content { padding-top: 43px; }
 .dashboard-header { width: 100%; height: 72px; padding: 0 max(32px, calc((100% - 1160px)/2)); border-bottom: 1px solid #e9ece6; background: #fff; }
 .dashboard-nav, .workspace-route-nav { display: flex; align-items: center; gap: 22px; color: #68756b; font-size: calc(12px + 1px); font-weight: 600; }
 .dashboard-nav a:hover, .workspace-route-nav a:hover { color: var(--green-dark); }
@@ -453,6 +464,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .outage-report-meta { display: flex; flex-wrap: wrap; gap: 9px 18px; margin-top: 13px; }
 .outage-report-meta > span { display: flex; flex-direction: column; gap: 3px; color: #68756b; font-size: calc(12px + 1px); }
 .outage-report-meta strong { color: #939d95; font-size: calc(10px + 1px); font-weight: 600; }
+.outage-payment-action { display: flex; justify-content: flex-end; margin-top: 13px; }
+.outage-payment-action .button { min-height: 38px; padding: 0 12px; font-size: calc(12px + 1px); }
+.payment-paid-badge { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #d9e8d1; border-radius: 6px; background: #eef6e9; color: #456b3f; font-size: calc(12px + 1px); font-weight: 700; }
 .outage-report-card .record-actions { padding-top: 12px; border-top: 1px solid #edf0eb; }
 .outage-report-card .record-actions select { max-width: 280px; }
 .admin-console { display: grid; gap: 16px; }
@@ -479,6 +493,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .area-create-form input, .area-create-form select, .payment-start-form input, .payment-start-form select { width: 100%; min-width: 0; min-height: 42px; padding: 8px 10px; border: 1px solid #dfe5dd; border-radius: 6px; background: #fff; color: #334038; font: inherit; font-size: calc(13px + 1px); }
 .area-create-form > .button { min-height: 42px; padding: 0 13px; font-size: calc(12px + 1px); }
 .payments-workspace { display: grid; gap: 16px; }
+.payment-callback-shell { display: flex; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 28px 20px; background: #f7f8f4; }
+.payment-callback-shell > .payments-workspace { width: min(720px, 100%); }
+.payment-callback-reference { display: flex; flex-direction: column; gap: 5px; margin: 0 0 16px; overflow-wrap: anywhere; color: #526157; font-size: calc(12px + 1px); }
+.payment-callback-reference strong { color: #879188; font-size: calc(10px + 1px); text-transform: uppercase; letter-spacing: .7px; }
 .payment-success-card { max-width: 720px; margin: 0 auto; padding: 30px; }
 .payment-success-card > .eyebrow { display: block; margin-top: 13px; }
 .payment-success-card h2 { margin: 7px 0 0; color: #344139; font-family: "Manrope", sans-serif; font-size: calc(24px + 1px); }
@@ -496,10 +514,20 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .payment-start-form { display: grid; max-width: 560px; gap: 8px; }
 .payment-start-form label { margin-top: 5px; }
 .payment-start-form .workspace-submit { margin-top: 8px; }
+.payment-amount-help { margin: -3px 0 0; color: #879188; font-size: calc(11px + 1px); line-height: 1.5; }
 .payment-checkout { max-width: 560px; margin-top: 15px; padding: 14px; border: 1px solid #e0ead8; border-radius: 7px; background: #f7faf4; }
 .payment-checkout p { margin: 0 0 12px; color: #59675d; font-size: calc(13px + 1px); line-height: 1.55; }
 .payment-checkout p strong { color: #344139; }
 .payment-checkout .payment-link { width: auto; }
+.payment-checkout .payment-link:focus-visible, .payment-history-toolbar select:focus-visible { outline: 3px solid rgba(111, 147, 100, .3); outline-offset: 2px; }
+.payment-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 16px; }
+.payment-summary article { display: flex; min-width: 0; flex-direction: column; gap: 7px; padding: 13px 15px; border: 1px solid #e8ece5; border-radius: 7px; background: #fafbf8; }
+.payment-summary article span { color: #7e8a80; font-size: calc(11px + 1px); }
+.payment-summary article strong { overflow-wrap: anywhere; color: #405849; font-family: "Manrope", sans-serif; font-size: calc(18px + 1px); }
+.payment-history-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; color: #879188; font-size: calc(12px + 1px); }
+.payment-history-toolbar label { display: flex; align-items: center; gap: 9px; color: #536156; font-weight: 650; }
+.payment-history-toolbar select { min-height: 38px; padding: 6px 30px 6px 10px; border: 1px solid #dfe5dd; border-radius: 6px; background: #fff; color: #334038; font: inherit; font-size: calc(12px + 1px); }
+.payment-history-error p { margin: 0 0 12px; }
 .payment-table td:first-child { min-width: 180px; }
 .payment-table td:nth-child(2) { min-width: 135px; }
 .schedule-editor { margin: 18px 0; padding: 17px; border: 1px solid #e8ece5; border-radius: 8px; background: #fafbf8; }
@@ -620,6 +648,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .workspace-route-content .dashboard-welcome h1 { font-size: calc(27px + 1px); }
   .workspace-back-link { align-self: flex-start; }
   .dashboard-content { width: calc(100% - 38px); padding-top: 35px; }
+  .admin-workspace-layout { display: flex; min-height: 0; flex-direction: column; }
+  .admin-sidebar { position: static; width: 100%; min-height: 0; padding: 12px 19px; border-right: 0; border-bottom: 1px solid #e6eae3; }
+  .admin-sidebar-heading { margin: 0 0 8px; }
+  .admin-sidebar-nav { flex-direction: row; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .admin-sidebar-link { min-width: max-content; min-height: 38px; gap: 7px; padding: 0 10px; }
+  .admin-sidebar-icon { width: auto; }
+  .admin-dashboard-content, .admin-dashboard-content.workspace-route-content { width: calc(100% - 38px); padding-top: 30px; }
   .dashboard-welcome { display: block; }
   .dashboard-welcome h1 { font-size: calc(27px + 1px); }
   .live-pill { display: inline-flex; margin-top: 16px; }
@@ -649,6 +684,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .infrastructure-page-grid { grid-template-columns: 1fr; }
   .payment-success-card { padding: 21px; }
   .payment-success-details { grid-template-columns: 1fr; }
+  .payment-summary { grid-template-columns: 1fr 1fr; }
+  .payment-summary article:last-child { grid-column: 1 / -1; }
+  .payment-history-toolbar { align-items: flex-start; flex-direction: column; }
+  .payment-history-toolbar label { width: 100%; justify-content: space-between; }
   .area-create-form { grid-template-columns: 1fr 1fr; }
   .area-create-form > div { grid-column: 1 / -1; }
   .area-create-form > .button { grid-column: 1 / -1; }

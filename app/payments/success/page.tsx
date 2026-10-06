@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { getAccessToken } from "@/lib/session";
-import { WorkspacePage } from "../../components/workspace-page";
 
 type Payment = {
   id: string;
@@ -35,19 +34,29 @@ function formatDate(value: string) {
 
 function PaymentSuccessDetails() {
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [paymentReference, setPaymentReference] = useState("");
+  const [callbackConfirmed, setCallbackConfirmed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const paymentId = new URLSearchParams(window.location.search).get("paymentId");
+    const params = new URLSearchParams(window.location.search);
+    const paymentId = params.get("paymentId");
+    const callbackStatus = (params.get("paymentStatus") ?? "").toLowerCase();
     const token = getAccessToken();
-    if (!token) {
-      setError("Your session has expired. Please log in again to view this payment.");
+    if (!paymentId) {
+      if (callbackStatus === "success") {
+        setCallbackConfirmed(true);
+        setLoading(false);
+        return;
+      }
+      setError("The payment reference is missing. Check your payment history for the latest status.");
       setLoading(false);
       return;
     }
-    if (!paymentId) {
-      setError("The payment reference is missing. Check your payment history for the latest status.");
+    setPaymentReference(paymentId);
+    if (!token) {
+      setError("bKash confirmed this payment. Sign in to view the full transaction details.");
       setLoading(false);
       return;
     }
@@ -63,13 +72,9 @@ function PaymentSuccessDetails() {
           accessToken,
         );
         if (!cancelled) setPayment(response.data);
-      } catch (requestError) {
+      } catch {
         if (!cancelled) {
-          setError(
-            requestError instanceof Error
-              ? requestError.message
-              : "Unable to load payment details.",
-          );
+          setError("bKash confirmed this payment. Sign in to view the full transaction details.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -88,9 +93,24 @@ function PaymentSuccessDetails() {
         <div className="workspace-empty">Loading payment details…</div>
       ) : error ? (
         <>
-          <h2 id="payment-success-heading">Payment received</h2>
-          <p className="workspace-message workspace-error" role="alert">{error}</p>
-          <Link className="button button-light" href="/payments">Go to payment history</Link>
+          <div className="payment-success-mark" aria-hidden="true">✓</div>
+          <span className="eyebrow">BKASH PAYMENT COMPLETE</span>
+          <h2 id="payment-success-heading">Payment successful</h2>
+          <p className="payment-success-intro">Your payment was confirmed by bKash.</p>
+          <p className="workspace-message workspace-notice" role="status">{error}</p>
+          {paymentReference && <p className="payment-callback-reference"><strong>Payment reference</strong>{paymentReference}</p>}
+          <div className="payment-result-actions">
+            <Link className="button button-dark" href="/">Back to dashboard</Link>
+            <Link className="button button-light" href="/">Back to overview</Link>
+          </div>
+        </>
+      ) : callbackConfirmed ? (
+        <>
+          <div className="payment-success-mark" aria-hidden="true">✓</div>
+          <span className="eyebrow">BKASH PAYMENT COMPLETE</span>
+          <h2 id="payment-success-heading">Payment successful</h2>
+          <p className="payment-success-intro">bKash confirmed your payment. Your payment history will show the full transaction details.</p>
+          <Link className="button button-dark" href="/">Back to dashboard</Link>
         </>
       ) : payment ? (
         <>
@@ -118,8 +138,9 @@ function PaymentSuccessDetails() {
 
 export default function PaymentSuccessPage() {
   return (
-    <WorkspacePage page="payments">
-      {() => <div className="payments-workspace"><PaymentSuccessDetails /></div>}
-    </WorkspacePage>
+    <main className="payment-callback-shell">
+      <Link className="brand" href="/"><span className="brand-mark">R</span>Rakib</Link>
+      <div className="payments-workspace"><PaymentSuccessDetails /></div>
+    </main>
   );
 }

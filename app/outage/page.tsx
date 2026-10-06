@@ -1,8 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { apiRequest } from "@/lib/api";
 import { getAccessToken } from "@/lib/session";
+import { readPaymentOutages } from "@/lib/payment-outages";
 import { WorkspacePage } from "../components/workspace-page";
 
 type Area = { id: string; name: string; code: string };
@@ -19,7 +21,9 @@ type Outage = {
   area: Area;
   reportedBy?: { name: string; email: string };
   assignments?: Assignment[];
+  payments?: { id: string; status: string; amount: number; transactionId: string }[];
 };
+type PaymentStatus = { id: string; status: string };
 type OutageResult = {
   data: Outage[];
   meta: { page: number; limit: number; total: number; totalPages: number };
@@ -42,7 +46,7 @@ const emptyForm: OutageForm = {
 
 const statusTransitions: Record<string, string[]> = {
   REPORTED: ["VERIFIED"],
-  VERIFIED: ["ASSIGNED", "IN_PROGRESS"],
+  VERIFIED: ["IN_PROGRESS"],
   ASSIGNED: ["IN_PROGRESS"],
   IN_PROGRESS: ["RESTORED"],
   RESTORED: ["CLOSED"],
@@ -74,6 +78,9 @@ function OutageWorkspace({ role }: { role: string }) {
   const [areas, setAreas] = useState<Area[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
   const [outages, setOutages] = useState<Outage[]>([]);
+  const [paidReportIds, setPaidReportIds] = useState<Set<string>>(() => new Set());
+  const [retryReportIds, setRetryReportIds] = useState<Set<string>>(() => new Set());
+  const [paymentRefreshKey, setPaymentRefreshKey] = useState(0);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
@@ -94,6 +101,13 @@ function OutageWorkspace({ role }: { role: string }) {
   const [busyOutageId, setBusyOutageId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!isCustomer) return;
+    const refreshPaymentStatuses = () => setPaymentRefreshKey((key) => key + 1);
+    window.addEventListener("focus", refreshPaymentStatuses);
+    return () => window.removeEventListener("focus", refreshPaymentStatuses);
+  }, [isCustomer]);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -161,6 +175,29 @@ function OutageWorkspace({ role }: { role: string }) {
           setOutages(response.data);
           setTotal(response.data.length);
           setTotalPages(1);
+          setPaidReportIds(new Set());
+          setRetryReportIds(new Set());
+          try {
+            const paymentResponse = await apiRequest<PaymentStatus[]>("/api/v1/payment", {}, accessToken);
+            if (cancelled) return;
+            const paymentOutages = readPaymentOutages();
+            const paidIds = new Set<string>();
+            const latestStatusByOutage = new Map<string, string>();
+            for (const payment of paymentResponse.data) {
+              const outageId = paymentOutages[payment.id];
+              if (!outageId) continue;
+              if (payment.status === "SUCCESS") paidIds.add(outageId);
+              if (!latestStatusByOutage.has(outageId)) latestStatusByOutage.set(outageId, payment.status);
+            }
+            setPaidReportIds(paidIds);
+            setRetryReportIds(new Set(
+              [...latestStatusByOutage]
+                .filter(([outageId, paymentStatus]) => paymentStatus !== "SUCCESS" && !paidIds.has(outageId))
+                .map(([outageId]) => outageId),
+            ));
+          } catch {
+            // The outage directory remains usable if payment history is temporarily unavailable.
+          }
         } else {
           const response = await apiRequest<OutageResult>(`/api/v1/outage?${query.toString()}`, {}, accessToken);
           if (cancelled) return;
@@ -177,7 +214,7 @@ function OutageWorkspace({ role }: { role: string }) {
 
     void loadOutages();
     return () => { cancelled = true; };
-  }, [appliedFilters, isCustomer, page]);
+  }, [appliedFilters, isCustomer, page, paymentRefreshKey]);
 
   async function reportOutage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -206,9 +243,21 @@ function OutageWorkspace({ role }: { role: string }) {
       setShowForm(false);
       setNotice("Your outage report was submitted.");
       setPage(1);
-      const response = await apiRequest<Outage[]>("/api/v1/outage/my-reports", {}, token);
-      setOutages(response.data);
-      setTotal(response.data.length);
+      try {
+        if (isCustomer) {
+          const response = await apiRequest<Outage[]>("/api/v1/outage/my-reports", {}, token);
+          setOutages(response.data);
+          setTotal(response.data.length);
+        } else {
+          const query = new URLSearchParams({ page: "1", limit: "10", sortBy: "reportedAt", sortOrder: "desc" });
+          const response = await apiRequest<OutageResult>(`/api/v1/outage?${query.toString()}`, {}, token);
+          setOutages(response.data.data);
+          setTotal(response.data.meta.total);
+          setTotalPages(Math.max(response.data.meta.totalPages, 1));
+        }
+      } catch {
+        setError("Report submitted, but the report list could not be refreshed. Reload the page to see it.");
+      }
     } catch (requestError) {
       setError(messageFor(requestError, "Unable to submit your outage report."));
     } finally {
@@ -344,9 +393,21 @@ function OutageWorkspace({ role }: { role: string }) {
                       {outage.reportedBy && <span><strong>By</strong>{outage.reportedBy.name}</span>}
                       {outage.assignments?.[0] && <span><strong>Assigned to</strong>{outage.assignments[0].technician.name}</span>}
                     </div>
+                    {isCustomer && (
+                      <div className="outage-payment-action">
+                        {paidReportIds.has(outage.id) ? (
+                          <span className="payment-paid-badge" role="status"><span aria-hidden="true">✓</span> Paid</span>
+                        ) : (
+                          <Link className="button button-dark" href={`/payments?outageId=${encodeURIComponent(outage.id)}`}>
+                            {retryReportIds.has(outage.id) ? "Try payment again" : "Continue to payment"}
+                            <span aria-hidden="true">→</span>
+                          </Link>
+                        )}
+                      </div>
+                    )}
                     {canManage && (
                       <div className="record-actions">
-                        {outage.status === "REPORTED" && (
+                        {outage.status === "REPORTED" && (role === "ADMIN" || role === "SUPER_ADMIN") && (
                           <button className="table-action" disabled={busyOutageId === outage.id} onClick={() => void updateOutage(outage, "verify")} type="button">Verify report</button>
                         )}
                         {nextStatuses.length > 0 && (
@@ -355,7 +416,8 @@ function OutageWorkspace({ role }: { role: string }) {
                             {nextStatuses.map((nextStatus) => <option key={nextStatus} value={nextStatus}>{humanize(nextStatus)}</option>)}
                           </select>
                         )}
-                        {outage.status === "VERIFIED" && (role === "ADMIN" || role === "SUPER_ADMIN") && operators.length > 0 && (
+                        {outage.payments?.some((payment) => payment.status === "SUCCESS") && <span className="payment-paid-badge" role="status">✓ Customer paid</span>}
+                        {outage.status === "VERIFIED" && outage.payments?.some((payment) => payment.status === "SUCCESS") && (role === "ADMIN" || role === "SUPER_ADMIN") && operators.length > 0 && (
                           <select aria-label={`Assign operator to ${outage.title}`} disabled={busyOutageId === outage.id} onChange={(event) => { if (event.target.value) void updateOutage(outage, "assign", event.target.value); }} value="">
                             <option value="">Assign an operator…</option>
                             {operators.map((operator) => <option key={operator.id} value={operator.id}>{operator.name} · {operator.email}</option>)}

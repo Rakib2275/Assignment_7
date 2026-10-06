@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { clearAccessToken, getAccessToken } from "@/lib/session";
+import { AdminSidebar } from "./admin-sidebar";
 
 type WorkspaceRoute =
   | "analytics"
@@ -178,8 +179,12 @@ export function WorkspacePage({
           <span className="brand-mark">R</span>Rakib
         </Link>
         <h1>Payments aren’t available for this account.</h1>
-        <p>Sign in as a customer or administrator to view payment records.</p>
-        <Link className="button button-dark" href="/">Back to overview</Link>
+        <p>This account has {user.role.replaceAll("_", " ")} access. Payment checkout is available to customers; administrators can view platform payment records.</p>
+        <div className="payment-result-actions">
+          <Link className="button button-dark" href="/login">Sign in as a customer</Link>
+          <Link className="button button-light" href="/register">Create a customer account</Link>
+          <Link className="button button-light" href="/">Back to overview</Link>
+        </div>
       </main>
     );
   }
@@ -193,7 +198,7 @@ export function WorkspacePage({
         <Link className="brand" href="/" aria-label="Rakib dashboard">
           <span className="brand-mark">R</span>Rakib
         </Link>
-        <nav className="workspace-route-nav" aria-label="Main navigation">
+        {!isAdmin && <nav className="workspace-route-nav" aria-label="Main navigation">
           <Link href="/">Overview</Link>
           <Link aria-current={page === "schedules" ? "page" : undefined} href="/schedules">Schedules</Link>
           <Link aria-current={page === "schedules-areas" ? "page" : undefined} href="/schedules-areas">By area</Link>
@@ -207,7 +212,7 @@ export function WorkspacePage({
           {isAdmin && <Link href="/users">Users</Link>}
           {isAdmin && <Link href="/analytics">Analytics</Link>}
           {isAdmin && <Link href="/audit-log">Audit log</Link>}
-        </nav>
+        </nav>}
         <div className="header-user">
           {isAdmin && (
             <span className="admin-role-badge">
@@ -222,7 +227,9 @@ export function WorkspacePage({
         </div>
       </header>
 
-      <section className="dashboard-content workspace-route-content">
+      <div className={isAdmin ? "admin-workspace-layout" : undefined}>
+      {isAdmin && <AdminSidebar />}
+      <section className={`dashboard-content workspace-route-content${isAdmin ? " admin-dashboard-content" : ""}`}>
         <div className="dashboard-welcome">
           <div>
             <span className="eyebrow">{details.eyebrow}</span>
@@ -235,6 +242,7 @@ export function WorkspacePage({
         </div>
         {content}
       </section>
+      </div>
     </main>
   );
 }
